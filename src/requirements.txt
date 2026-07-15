@@ -1,9 +1,10 @@
-fastapi == 0.115.14
-uvicorn[standard]== 0.35.0
-python-multipart == 0.0.20
-python-dotenv == 1.1.1
-pydantic-settings == 2.10.1
-aiofiles == 24.1.0
-langchain == 0.3.26
-PyMuPDF == 1.26.3
-langchain-community == 0.3.27
+fastapi
+uvicorn[standard]
+python-multipart 
+python-dotenv
+pydantic-settings
+aiofiles 
+langchain 
+PyMuPDF 
+langchain-community 
+motor

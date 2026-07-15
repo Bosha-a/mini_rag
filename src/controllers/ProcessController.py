@@ -1,10 +1,10 @@
 from .BaseController import BaseController
 from .ProjectController import ProjectController
 import os 
-from langchain_community.document_loaders import TerxtLoader
+from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader 
 from models import ProcesssingEnum
-from langchain.text_splitter import RecursicveTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 class ProcessController(BaseController):
@@ -14,8 +14,10 @@ class ProcessController(BaseController):
         self.project_path = ProjectController().get_project_path(project_id=self.project_id)
 
     def get_file_extention(self , file_id : str):
-        return os.path.splitext(file_id)[-1] # return the extention of file
+        """ Get the extension of the file."""
+        return os.path.splitext(file_id)[-1]
     
+
     def get_file_loader(self, file_id: str) :
         """
         Get the appropriate file loader based on the file extension.
@@ -24,9 +26,11 @@ class ProcessController(BaseController):
         file_path = os.path.join(self.project_path, file_id)  # full path of file
         
         if file_ext == ProcesssingEnum.TXT.value:
-            return TerxtLoader(file_path , encoding = 'utf-8')
+            return TextLoader(file_path , encoding = 'utf-8')
+        
         elif file_ext == ProcesssingEnum.PDF.value:
             return PyMuPDFLoader(file_path)
+        
         else:
             return None 
         
@@ -37,16 +41,20 @@ class ProcessController(BaseController):
         """
         loader = self.get_file_loader(file_id=file_id)
         if loader:
-            return loader.load()
+            return loader.load() # list of properties [page_content , metadata]
         
         
     def process_file_content(self, file_content : list, file_id: str, chunk_size: int = 100, overlap_size: int = 200):
         """
-        Process the file content and return the text.
+        Process the file content [page_content , metadata] and return the text.
         """
         documents = self.get_file_content(file_id=file_id)
         if documents:
-            text_splitter = RecursicveTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap_size, length_function=len)
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=chunk_size,
+                chunk_overlap=overlap_size,
+                length_function=len
+                )
 
             file_content_texts = [
                 rec.page_content
@@ -60,7 +68,7 @@ class ProcessController(BaseController):
 
 
             chunks = text_splitter.create_documents(
-                file_content_texts,
+                texts=file_content_texts,
                 metadatas=file_content_metadata # for each chunk 
                 )
             
