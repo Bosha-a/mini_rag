@@ -1,15 +1,22 @@
-from pydantic import BaseModel , Field, Validator
+from pydantic import BaseModel , Field, validator
 from bson.objectid import ObjectId
 from typing import Optional
 
 class DataChunk(BaseModel):
-    _id: Optional[ObjectId]
-    chenk_text: str = Field(..., min_length=1)
+    id: Optional[str] = Field(None, alias="_id")  # Optional field for MongoDB ObjectId
+    chunk_text: str = Field(..., min_length=1)
     chunk_metadata: dict 
     chunk_order : int = Field(..., gt=0)  # Ensure chunk_order is a non-negative integer
-    chunk_project_id : ObjectId
+    chunk_project_id : str
+
+    @validator('id', pre=True, always=True)
+    def convert_objectid_to_str(cls, value):
+        if isinstance(value, ObjectId):
+            return str(value)
+        
+        return value
 
 
     class Config: 
         arbitrary_types_allowed = False # to ignore any type error for ObjectId
-        
+        allow_population_by_field_name = True
