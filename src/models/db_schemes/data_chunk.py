@@ -20,3 +20,16 @@ class DataChunk(BaseModel):
     class Config: 
         arbitrary_types_allowed = False # to ignore any type error for ObjectId
         allow_population_by_field_name = True
+
+
+    @classmethod
+    def get_indexes(cls):
+        return [
+            {
+                "key": [
+                    ("project_id", 1) # ascending, -1 if descending 
+                ],
+                "name": "chunk_project_id_index_1",
+                "unique": False
+            }
+        ]
