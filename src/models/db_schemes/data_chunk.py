@@ -8,6 +8,7 @@ class DataChunk(BaseModel):
     chunk_metadata: dict 
     chunk_order : int = Field(..., gt=0)  # Ensure chunk_order is a non-negative integer
     chunk_project_id : str
+    chunk_asset_id : str
 
     @validator('id', pre=True, always=True)
     def convert_objectid_to_str(cls, value):
