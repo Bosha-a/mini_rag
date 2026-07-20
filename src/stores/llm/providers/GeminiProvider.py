@@ -78,7 +78,7 @@ class GeminiProvider(LLMInterface):
         
 
 
-    def embd_text(self, text: str, document_type: str) -> list:
+    def embed_text(self, text: str, document_type: str) -> list:
         if not self.client:
             self.logger.error("Gemini client is not initialized. Please check your API key.")
             return None

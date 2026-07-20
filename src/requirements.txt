@@ -8,3 +8,7 @@ langchain
 PyMuPDF 
 langchain-community 
 motor
+openai
+cohere
+google-genai
+qdrant-client

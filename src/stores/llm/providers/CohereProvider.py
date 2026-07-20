@@ -76,7 +76,7 @@ class CohereProvider(LLMInterface):
         return response.generations[0].text.strip()
     
 
-    def embd_text(self, text: str, document_type: str) -> list:
+    def embed_text(self, text: str, document_type: str) -> list:
         if not self.client:
             self.logger.error("Cohere client is not initialized. Please check your API key`.")
             return None

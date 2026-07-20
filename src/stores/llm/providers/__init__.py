@@ -1,2 +1,3 @@
 from .CohereProvider import CohereProvider
+from .GeminiProvider import GeminiProvider
 from .OpenAIProvider import OpenAIProvider
