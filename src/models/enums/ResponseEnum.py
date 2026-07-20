@@ -22,3 +22,6 @@ class ResponseSignal(Enum):
     GET_VECTORD_DB_COLLECTION_INFO_SUCCESS = "get_vectordb_collection_info_success"
     SEARCH_VECTORD_DB_SUCCESS = "search_vectordb_success"
     SEARCH_VECTORD_DB_ERROR = "search_vectordb_error"
+
+    ANSWER_RAG_QUESTION_SUCCESS = "answer_rag_question_success"
+    ANSWER_RAG_QUESTION_ERROR = "answer_rag_question_error"
