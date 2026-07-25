@@ -6,9 +6,9 @@ from typing import List
 from models.db_schemes import RetrievedDocument
 
 class QdrantDBProvider(VectorDBInterface):
-    def __init__(self, db_path: str, distance_method: str):
+    def __init__(self, db_client: str, distance_method: str, default_vector_size: int = 3072, index_threshold: int = 100):
         self.client = None
-        self.db_path = db_path
+        self.db_client = db_client
         self.distance_method = None 
 
 
@@ -17,45 +17,45 @@ class QdrantDBProvider(VectorDBInterface):
         elif distance_method == DistanceMethonEnum.DOT.value:
             self.distance_method = models.Distance.DOT
         
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("uvicorn")
 
 
-
-    def connect(self):
+    async def connect(self):
         try:
-            self.client = QdrantClient(path=self.db_path)
-            self.logger.info(f"Connected to Qdrant database at {self.db_path}")
+            self.client = QdrantClient(path=self.db_client)
+            self.logger.info(f"Connected to Qdrant database at {self.db_client}")
         except Exception as e:
             self.logger.error(f"Failed to connect to Qdrant database: {e}")
             raise e
 
 
-    def disconnect(self):
+    async def disconnect(self):
         self.client = None
 
 
-    def is_collection_exists(self, collection_name: str) -> bool:
+    async def is_collection_exists(self, collection_name: str) -> bool:
         return self.client.collection_exists(collection_name=collection_name)
 
 
-    def list_all_collections(self) -> List:
+    async def list_all_collections(self) -> List:
         return self.client.get_collections()
 
 
-    def get_collection_info(self, collection_name: str) -> dict:
+    async def get_collection_info(self, collection_name: str) -> dict:
         return self.client.get_collection(collection_name=collection_name).model_dump()
 
 
-    def delete_collection(self, collection_name: str):
+    async def delete_collection(self, collection_name: str):
         if self.is_collection_exists(collection_name):
             return self.client.delete_collection(collection_name=collection_name)
 
 
-    def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
+    async def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
             if do_reset:
                 _ = self.delete_collection(collection_name=collection_name)
             
             if not self.is_collection_exists(collection_name):
+                self.logger.info(f"Creating collection {collection_name}")
                 _ = self.client.recreate_collection(
                     collection_name=collection_name,
                     vectors_config=models.VectorParams(
@@ -68,7 +68,7 @@ class QdrantDBProvider(VectorDBInterface):
             return False
         
 
-    def insert_one(self, collection_name: str, text: str, vector: list, metadata: dict = None, record_id: str = None):
+    async def insert_one(self, collection_name: str, text: str, vector: list, metadata: dict = None, record_id: str = None):
         if not self.is_collection_exists(collection_name):
             self.logger.error(f"Collection {collection_name} does not exist. Please create it first.")
             return False
@@ -92,7 +92,7 @@ class QdrantDBProvider(VectorDBInterface):
             self.logger.error(f"Failed to insert record into collection {collection_name}: {e}")
             return False    
 
-    def insert_many(self, collection_name: str, texts: list, vectors: list, metadata: list = None, record_ids: list = None, batch_size: int = 50):
+    async def insert_many(self, collection_name: str, texts: list, vectors: list, metadata: list = None, record_ids: list = None, batch_size: int = 50):
         if not self.is_collection_exists(collection_name):
             self.logger.error(f"Collection {collection_name} does not exist. Please create it first.")
             return False
@@ -134,7 +134,7 @@ class QdrantDBProvider(VectorDBInterface):
         return True
 
 
-    def search_by_vector(self, collection_name: str, query_vector: list, limit: int = 5):
+    async def search_by_vector(self, collection_name: str, query_vector: list, limit: int = 5):
         results = self.client.query_points(
             collection_name=collection_name,
             query=query_vector,
