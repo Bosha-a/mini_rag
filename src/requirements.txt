@@ -12,3 +12,9 @@ openai
 cohere
 google-genai
 qdrant-client
+SQLAlchemy
+asyncpg
+psycopg2
+alembic
+pgvector
+nltk

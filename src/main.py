@@ -8,14 +8,24 @@ from helpers.config import get_settings
 from stores.llm.LLMProviderFactory import LLMProviderFactory
 from stores.vector_db.VectorDBProviderFactory import VectorDBProviderFactory
 from stores.llm.templates.template_parser import TemplateParser
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
 
 app = FastAPI()
 
 async def startup_span():
     settings = get_settings()
-    app.mongodb_connection = AsyncIOMotorClient(settings.MONGODB_URL)
-    app.db_client = app.mongodb_connection[settings.MONGODB_DATABASE]
+
+    # app.mongodb_connection = AsyncIOMotorClient(settings.MONGODB_URL)
+    # app.db_client = app.mongodb_connection[settings.MONGODB_DATABASE]
+
+    postgres_conn = f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DATABASE}"
+
+    app.db_engine = create_async_engine(postgres_conn)
+    
+    app.db_client = sessionmaker(app.db_engine, class_=AsyncSession, expire_on_commit=False)
+
 
     llm_provider_factory = LLMProviderFactory(settings)
     vector_db_provider_factory = VectorDBProviderFactory(settings)
@@ -39,7 +49,8 @@ async def startup_span():
 
 
 async def shutdown_span():
-    app.mongodb_connection.close()
+    # app.mongodb_connection.close()
+    app.db_engine.dispose()  # Dispose of the SQLAlchemy engine
     app.vector_db_client.disconnect()  # Disconnect from the vector database
 
 
