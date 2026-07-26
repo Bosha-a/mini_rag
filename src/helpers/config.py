@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     MODEL_NAME : str = None
 
     GEMINI_API_KEY : str = None
+
+    COHERE_API_KEY : str = None
     
     GENERATION_MODEL_ID : str = None
     EMBEDDING_MODEL_ID : str = None

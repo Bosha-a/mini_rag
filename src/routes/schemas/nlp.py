@@ -10,6 +10,6 @@ class PushRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     # project_id: str = None
-    query: str = None
+    text: str
     limit: Optional[int] = 10
     

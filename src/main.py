@@ -28,9 +28,10 @@ async def startup_span():
 
 
     llm_provider_factory = LLMProviderFactory(settings)
-    vector_db_provider_factory = VectorDBProviderFactory(settings)
+    vector_db_provider_factory = VectorDBProviderFactory(settings, db_client=app.db_client)
 
     # Generation Client 
+    
     app.generation_client = llm_provider_factory.create(provider=settings.GENERATION_BACKEND)
     app.generation_client.set_generation_model(model_id=settings.GENERATION_MODEL_ID)
 
@@ -40,7 +41,7 @@ async def startup_span():
 
     # Vector DB Client
     app.vector_db_client = vector_db_provider_factory.create(provider=settings.VECTOR_DB_BACKEND)
-    app.vector_db_client.connect()  # Connect to the vector database
+    await app.vector_db_client.connect()  # Connect to the vector database
 
     app.template_parser = TemplateParser(
         language=settings.PRIMARY_LANGUAGE,
@@ -50,8 +51,8 @@ async def startup_span():
 
 async def shutdown_span():
     # app.mongodb_connection.close()
-    app.db_engine.dispose()  # Dispose of the SQLAlchemy engine
-    app.vector_db_client.disconnect()  # Disconnect from the vector database
+    await app.db_engine.dispose()  # Dispose of the SQLAlchemy engine
+    await app.vector_db_client.disconnect()  # Disconnect from the vector database
 
 
 ##Each app should be responsed on default route ('/')

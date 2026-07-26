@@ -3,7 +3,7 @@ from .db_schemes import DataChunk
 from .enums.DataBaseEnum import DataBaseEnum
 from bson.objectid import ObjectId 
 from pymongo import InsertOne
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 
 
 class ChunkModel(BaseDataModel):
@@ -82,4 +82,14 @@ class ChunkModel(BaseDataModel):
             )
             return chunks.scalars().all()  # Return the list of chunks
             
-        
+
+    async def get_total_chunks_count(self, project_id: str):
+        """Get the total count of chunks associated with a specific project ID."""
+        total_count = 0
+        async with self.db_client() as session:
+            count = await session.execute(
+                select(func.count(DataChunk.chunk_id))
+                .where(DataChunk.chunk_project_id == project_id)
+            )
+            total_count = count.scalar()  # Get the total count of chunks
+        return total_count

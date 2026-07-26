@@ -4,7 +4,7 @@ class VectorDBEnum(Enum):
     QDRANT = "QDRANT"
     PGVECTOR = "PGVECTOR"
 
-class DistanceMethonEnum(Enum):
+class DistanceMethodEnum(Enum):
     COSINE = "cosine"
     EUCLIDEAN = "euclidean"
     DOT = "dot"

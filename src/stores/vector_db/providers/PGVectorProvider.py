@@ -1,22 +1,25 @@
-from src.stores.vector_db.VectorDBInterface import VectorDBInterface
-from src.stores.vector_db.VectorDBEnum import (
-    DistanceMethonEnum, PgVectorDistanceMethonEnum,
-    PgVectorTableSchemaEnum, PgVectorIndexTypeEnum)
+from stores.vector_db.VectorDBInterface import VectorDBInterface
+from stores.vector_db.VectorDBEnum import (
+    PgVectorTableSchemaEnum, PgVectorIndexTypeEnum, PgVectorDistanceMethonEnum, DistanceMethodEnum)
 import logging 
 from typing import List
 from models.db_schemes import RetrievedDocument
 from sqlalchemy import text as sql_text
 import json
 
-
 class PGVectorProvider(VectorDBInterface):
-    def __init__(self, db_client, db_path: str, distance_method: str, default_vector_size: int = 3072, index_threshold: int = 100):
+    def __init__(self, db_client, distance_method: str, default_vector_size: int = 1024, index_threshold: int = 500):
         self.db_client=db_client
-        self.db_path=db_path
         self.default_vector_size=default_vector_size
-        self.distance_method=None 
         self.index_threshold=index_threshold
 
+        if distance_method == DistanceMethodEnum.COSINE.value:
+            distance_method = PgVectorDistanceMethonEnum.COSINE.value
+        elif distance_method == DistanceMethodEnum.DOT.value:
+            distance_method = PgVectorDistanceMethonEnum.DOT.value
+
+        self.distance_method=distance_method 
+        
         self.pgvector_table_prefix=PgVectorTableSchemaEnum._PREFIX.value
         self.default_index_name = lambda collection_name: f"{collection_name}_vector_idx"
 
@@ -25,10 +28,9 @@ class PGVectorProvider(VectorDBInterface):
 
     async def connect(self):
         # Test the connection by executing a simple query
-        async with self.db_client.acquire() as conn:
+        async with self.db_client() as conn:
             async with conn.begin():
                 await conn.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
-            await conn.commit()
 
 
     async def disconnect(self):
@@ -36,21 +38,19 @@ class PGVectorProvider(VectorDBInterface):
 
 
     async def is_collection_exists(self, collection_name: str) -> bool:
-        async with self.db_client.acquire() as conn:
+        async with self.db_client() as conn:
             async with conn.begin():
                 result = await conn.execute(
-                    sql_text(
-                        "SELECT * FROM pg_tables WHERE tablename = :collection_name"
-                    ),
-                    {"collection_name": f"{self.pgvector_table_prefix}{collection_name}"}
+                    sql_text("SELECT 1 FROM pg_tables WHERE tablename = :tablename"),
+                    {"tablename": f"{collection_name}"}
                 )
-                records = await result.scalar_one_or_none()
+                records = result.scalar_one_or_none()
             return records
 
 
 
     async def list_all_collections(self) -> List:
-        async with self.db_client.acquire() as conn:
+        async with self.db_client() as conn:
             async with conn.begin():
                 result = await conn.execute(
                     sql_text(
@@ -58,7 +58,7 @@ class PGVectorProvider(VectorDBInterface):
                     ),
                     {"prefix": f"{self.pgvector_table_prefix}%"}
                 )
-                records = await result.scalar().all()
+                records = result.scalars().all()
             return records
 
 
@@ -66,29 +66,29 @@ class PGVectorProvider(VectorDBInterface):
         async with self.db_client() as conn:
             async with conn.begin():
                     table_info_sql = sql_text(
-                        """
+                        f"""
                         SELECT * 
                         FROM pg_tables 
-                        WHERE tablename = :collection_name
+                        WHERE tablename = :name
                         """
                     )
 
                     count_sql = sql_text(
-                        """
+                        f"""
                         SELECT COUNT(*) 
-                        FROM :collection_name
+                        FROM {collection_name}
                         """
                     )
 
-                    table_info_result = await conn.execute(table_info_sql, {"collection_name": collection_name})
-                    record_count = await conn.execute(count_sql, {"collection_name": collection_name})  
+                    table_info_result = await conn.execute(table_info_sql, {"name": collection_name})
+                    record_count = await conn.execute(count_sql)  
 
                     table_data = table_info_result.fetchone()
                     if not table_data:
                         return None  # Collection does not exist
 
                     return {
-                        "table_info": dict(table_data),
+                        "table_info": dict(table_data._mapping),
                         "record_count": record_count.fetchone()[0]
                     }
 
@@ -96,9 +96,9 @@ class PGVectorProvider(VectorDBInterface):
         async with self.db_client() as conn:
             async with conn.begin():
                 drop_table_sql = sql_text(
-                    f"DROP TABLE IF EXISTS ;collection_name"
+                    f"DROP TABLE IF EXISTS {collection_name}"
                 )
-                await conn.execute(drop_table_sql, {"collection_name": collection_name})
+                await conn.execute(drop_table_sql)
                 await conn.commit() # because there is a change in database
 
         return True
@@ -114,11 +114,12 @@ class PGVectorProvider(VectorDBInterface):
                 async with conn.begin():
                     create_table_sql = sql_text(
                         f"""
-                        CREATE TABLE ;collection_name (
+                        CREATE TABLE {collection_name} (
                             {PgVectorTableSchemaEnum.ID.value} bigserial PRIMARY KEY,
                             {PgVectorTableSchemaEnum.TEXT.value} TEXT,
-                            {PgVectorTableSchemaEnum.VECTOR.value} VECTOR({embedding_size}),
+                            {PgVectorTableSchemaEnum.VECTOR.value} vector({embedding_size}),
                             {PgVectorTableSchemaEnum.METADATA.value} JSONB DEFAULT \'{{}}\',
+                            {PgVectorTableSchemaEnum.CHUNK_ID.value} BIGINT,
                             FOREIGN KEY ({PgVectorTableSchemaEnum.CHUNK_ID.value}) REFERENCES chunks(chunk_id)
                         )
                         """
@@ -134,23 +135,23 @@ class PGVectorProvider(VectorDBInterface):
 
 
     async def is_index_exists(self, collection_name: str) -> bool:
-        index_name = await self.default_index_name(collection_name)
+        index_name = self.default_index_name(collection_name)
         async with self.db_client() as conn:
             async with conn.begin():
                 result = await conn.execute(
                     sql_text(
-                        "SELECT 1 FROM pg_indexes WHERE tablename = :collection_name AND indexname = :index_name"
+                        f"SELECT 1 FROM pg_indexes WHERE tablename = :collection_name AND indexname = :index_name"
                     ),
                     {"collection_name": collection_name, "index_name": index_name}
                 )
-                records = await result.scalar_one_or_none()
+                records = result.scalar_one_or_none()
             return bool(records)
 
 
     async def create_vector_index(self, collection_name: str, 
                                         index_type: str = PgVectorIndexTypeEnum.HNSW.value):
         
-        index_name = await self.default_index_name(collection_name)
+        index_name = self.default_index_name(collection_name)
 
         if not await self.is_index_exists(collection_name):
             async with self.db_client() as conn:
@@ -159,7 +160,7 @@ class PGVectorProvider(VectorDBInterface):
                         f"SELECT COUNT(*) FROM {collection_name}"
                     )
                     count_result = await conn.execute(count_sql)
-                    records_count = await count_result.scalar_one()
+                    records_count = count_result.scalar_one()
 
                     if records_count is None or records_count < self.index_threshold:
                         self.logger.info(f"Skipping index creation for collection {collection_name} as it has only {records_count} records.")
@@ -168,12 +169,12 @@ class PGVectorProvider(VectorDBInterface):
                     else:
                         create_index_sql = sql_text( 
                             f"""
-                            CREATE INDEX index_name 
-                            ON ;collection_name 
+                            CREATE INDEX {index_name}
+                            ON {collection_name}
                             USING {index_type} ({PgVectorTableSchemaEnum.VECTOR.value} {self.distance_method})
                             """
                         )
-                        await conn.execute(create_index_sql, {"collection_name": collection_name, "index_name": index_name})
+                        await conn.execute(create_index_sql)
 
             self.logger.info(f"Index {index_name} created successfully on collection {collection_name}.")
             return True
@@ -185,13 +186,13 @@ class PGVectorProvider(VectorDBInterface):
     async def reset_vector_index(self, collection_name: str, 
                                        index_type: str = PgVectorIndexTypeEnum.HNSW.value):
 
-        index_name = await self.default_index_name(collection_name)
+        index_name = self.default_index_name(collection_name)
         async with self.db_client() as conn:
             async with conn.begin():
                 drop_index_sql = sql_text(
-                    f"DROP INDEX IF EXISTS ;index_name"
+                    f"DROP INDEX IF EXISTS {index_name}"
                 )
-                await conn.execute(drop_index_sql, {"index_name": index_name})
+                await conn.execute(drop_index_sql)
 
             return await self.create_vector_index(collection_name=collection_name, index_type=index_type)
 
@@ -226,10 +227,12 @@ class PGVectorProvider(VectorDBInterface):
                 await conn.execute(insert_sql, {
                     "text": text,
                     "vector": f"[" + ",".join([str(v) for v in vector]) + "]",
-                    "metadata": metadata,
+                    "metadata": json.dumps(metadata or {}),
                     "chunk_id": record_id
                 })
                 await conn.commit()  # Commit the transaction
+
+        await self.create_vector_index(collection_name=collection_name)  # Ensure index is created after insertion
 
         return True
 
@@ -260,7 +263,7 @@ class PGVectorProvider(VectorDBInterface):
                           values.append({
                                 "text": _text,
                                 "vector": f"[" + ",".join([str(v) for v in _vector]) + "]",
-                                "metadata": _metadata,
+                                "metadata": json.dumps(_metadata or {}),
                                 "chunk_id": _record_id
                           })
 
@@ -277,6 +280,8 @@ class PGVectorProvider(VectorDBInterface):
                                        )
                   await conn.execute(batch_insert_sql, values)
 
+        await self.create_vector_index(collection_name=collection_name)  # Ensure index is created after insertion
+
         return True
 
 
@@ -290,19 +295,18 @@ class PGVectorProvider(VectorDBInterface):
         query_vector = "[" + ",".join([str(v) for v in query_vector]) + "]"
         async with self.db_client() as conn:
             async with conn.begin():
+
                 search_sql = sql_text(
                     f"""
-                    SELECT {PgVectorTableSchemaEnum.TEXT.value} as text, 1 - ({PgVectorTableSchemaEnum.VECTOR.value} <=> :query_vector) AS score
+                    SELECT {PgVectorTableSchemaEnum.TEXT.value} as text,
+                        1 - ({PgVectorTableSchemaEnum.VECTOR.value} <=> :query_vector) AS score
                     FROM {collection_name}
                     ORDER BY score DESC
                     LIMIT :limit
                     """
                 )
-                result = await conn.execute(search_sql, {
-                    "query_vector": query_vector,
-                    "limit": limit
-                })
-                records = await result.fetchall()
+                result = await conn.execute(search_sql, {"query_vector": query_vector, "limit": limit})
+                records = result.fetchall()
 
         retrieved_documents = []
         for record in records:

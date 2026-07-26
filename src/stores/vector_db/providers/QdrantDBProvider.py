@@ -1,6 +1,6 @@
 from ..VectorDBInterface import VectorDBInterface
 from qdrant_client import models, QdrantClient
-from ..VectorDBEnum import DistanceMethonEnum
+from ..VectorDBEnum import DistanceMethodEnum
 import logging
 from typing import List
 from models.db_schemes import RetrievedDocument
@@ -10,11 +10,13 @@ class QdrantDBProvider(VectorDBInterface):
         self.client = None
         self.db_client = db_client
         self.distance_method = None 
+        self.default_vector_size=default_vector_size
 
 
-        if distance_method == DistanceMethonEnum.COSINE.value:
+
+        if distance_method == DistanceMethodEnum.COSINE.value:
             self.distance_method = models.Distance.COSINE
-        elif distance_method == DistanceMethonEnum.DOT.value:
+        elif distance_method == DistanceMethodEnum.DOT.value:
             self.distance_method = models.Distance.DOT
         
         self.logger = logging.getLogger("uvicorn")
