@@ -3,6 +3,7 @@ from ..LLMEnum import GeminiEnum
 from google.genai import types
 from google import genai
 import logging 
+from typing import List, Union
 
 
 class GeminiProvider(LLMInterface):
@@ -78,10 +79,15 @@ class GeminiProvider(LLMInterface):
         
 
 
-    def embed_text(self, text: str, document_type: str) -> list:
+
+    def embed_text(self, text: Union[str, List[str]], document_type: str) -> list:
         if not self.client:
             self.logger.error("Gemini client is not initialized. Please check your API key.")
             return None
+
+
+        if isinstance(text, str):
+            text = [text]
         
         if not self.embedding_model_id:
             self.logger.error("Embedding model ID is not set. Please set it using set_embedding_model method.")
@@ -89,15 +95,14 @@ class GeminiProvider(LLMInterface):
         
         response = self.client.models.embed_content(
             model=self.embedding_model_id,
-            contents=[text]
+            contents=[self.process_text(t) for t in text]
         )
 
         if not response or not response.embeddings or len(response.embeddings) == 0:
             self.logger.error("Failed to get embedding from Gemini API. Response is empty or invalid.")
             return None
 
-        return response.embeddings[0].values
-
+        return [f.values for f in response.embeddings]
 
     def construct_prompt(self, prompt: str, role: str) -> str:
         return{
