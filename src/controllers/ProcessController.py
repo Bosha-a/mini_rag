@@ -4,7 +4,13 @@ import os
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader 
 from models import ProcesssingEnum
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from typing import List
+from dataclasses import dataclass
+
+@dataclass 
+class Document:
+    page_content: str
+    metadata: dict
 
 
 class ProcessController(BaseController):
@@ -55,12 +61,6 @@ class ProcessController(BaseController):
         """
         documents = self.get_file_content(file_id=file_id)
         if documents:
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=overlap_size,
-                length_function=len
-                )
-
             file_content_texts = [
                 rec.page_content
                 for rec in file_content
@@ -72,11 +72,36 @@ class ProcessController(BaseController):
             ]
 
 
-            chunks = text_splitter.create_documents(
+            chunks = self.process_simpler_splitter(
                 texts=file_content_texts,
-                metadatas=file_content_metadata # for each chunk 
-                )
+                metadatas=file_content_metadata, # for each chunk
+                chunk_size=chunk_size
+            )
             
             return chunks
         return None
+
+    def process_simpler_splitter(self, texts: List[str], metadatas: List[dict], chunk_size: int, splitter_tag: str="\n"):
+            """
+            Splits the input text into chunks of specified maximum length.
+            """
+
+            full_text = " ".join(texts)
+
+            # split by \n
+            lines = [doc.strip() for doc in full_text.split(splitter_tag) if doc.strip() != ""]
+
+            chunks= []
+            current_chunk = ""
+
+            for line in lines: 
+                current_chunk += line + splitter_tag 
+                if len(current_chunk) >= chunk_size:
+                    chunks.append(Document(
+                        page_content=current_chunk.strip(),
+                        metadata={}
+                    ))
+                    current_chunk = ""
+
+            return chunks
         
