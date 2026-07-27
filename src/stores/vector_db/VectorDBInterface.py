@@ -51,6 +51,6 @@ class VectorDBInterface(ABC):
 
 
     @abstractmethod
-    def search_by_vector(self, collection_name: str, query_vector: list, limit: int = 5) -> List[RetrievedDocument]: 
+    def search_by_vector(self, collection_name: str, query_vector: list, limit: int = 5): 
         pass
     

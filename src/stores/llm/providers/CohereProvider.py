@@ -56,7 +56,7 @@ class CohereProvider(LLMInterface):
         max_output_tokens = max_output_tokens if max_output_tokens is not None else self.default_output_max_tokens
         temperature = temperature if temperature is not None else self.default_temperature
 
-        chat_history.append(self.construct_prompt(prompt, CohereEnum.USER.value))
+        chat_history = chat_history + [self.construct_prompt(prompt, CohereEnum.USER.value)]
 
         # Construct the prompt for Cohere
         cohere_prompt = "\n".join([f"{entry['role']}: {entry['content']}" for entry in chat_history])
@@ -73,7 +73,7 @@ class CohereProvider(LLMInterface):
             self.logger.error("Failed to generate text from Cohere API. Response is empty or invalid.")
             return None
         
-        return response.generations[0].text.strip()
+        return response.message.content[0].text.strip()
     
 
     def embed_text(self, text: str, document_type: str) -> list:
@@ -85,28 +85,32 @@ class CohereProvider(LLMInterface):
             self.logger.error("Embedding model ID is not set. Please set it using set_embedding_model method.")
             return None
         
-        input_type = CohereEnum.DOCUEMENT.value
+        input_type = CohereEnum.DOCUMENT.value
         if document_type == DocumentTypeEnum.QUERY.value:
             input_type = CohereEnum.QUERY.value
 
+
+        if isinstance(text, str):
+            text = [text]
+
         response = self.client.embed(
             model=self.embedding_model_id,
-            texts=[self.process_text(text)],
+            texts=text,
             input_type=input_type,
-            embedding_type=['float']
+            embedding_types=['float']
 
         )
 
-        if not response or not response.embeddings or len(response.embeddings) == 0 or not response.embeddings.float:
+        if not response or not response.embeddings or not response.embeddings.float:
             self.logger.error("Failed to get embedding from Cohere API. Response is empty or invalid.")
             return None
 
-        return response.embeddings.float[0]
+        return response.embeddings.float
     
     
     def construct_prompt(self, prompt: str, role: str) -> str:
         return {
             "role": role,
-            "content": self.process_text(prompt)
+            "content": prompt
         }
     

@@ -1,4 +1,5 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict      
+from pydantic_settings import BaseSettings, SettingsConfigDict   
+from typing import List   
 
 class Settings(BaseSettings):
 
@@ -10,8 +11,15 @@ class Settings(BaseSettings):
 
     FILE_DEFAULT_CHUNK_SIZE: int 
 
-    MONGODB_URL: str 
-    MONGODB_DATABASE : str
+    # MONGODB_URL: str 
+    # MONGODB_DATABASE : str
+
+    # postgres config
+    POSTGRES_USERNAME: str 
+    POSTGRES_PASSWORD: str 
+    POSTGRES_HOST: str 
+    POSTGRES_PORT: int 
+    POSTGRES_DATABASE: str
 
     # LLM Config
     GENERATION_BACKEND : str
@@ -22,6 +30,8 @@ class Settings(BaseSettings):
     MODEL_NAME : str = None
 
     GEMINI_API_KEY : str = None
+
+    COHERE_API_KEY : str = None
     
     GENERATION_MODEL_ID : str = None
     EMBEDDING_MODEL_ID : str = None
@@ -32,9 +42,11 @@ class Settings(BaseSettings):
     GENERATION_DEFAULT_TEMPERATURE: float = None
 
     # Vector DB Config
+    VECTOR_DB_BACKEND_LITERAL : List[str] = None
     VECTOR_DB_BACKEND : str = None
     VECTOR_DB_PATH :  str = None
     VECTOR_DB_DISTANCE_METHOD : str = None
+    VECTOR_DB_PGVECTOR_INDEX_THRESHOLD: int = 100
 
     DEFAULT_LANGUAGE:str = None
     PRIMARY_LANGUAGE:str = None

@@ -1,6 +1,4 @@
 from .BaseController import BaseController
-from fastapi import UploadFile
-from models import ResponseSignal
 import os 
 
 
@@ -12,7 +10,7 @@ class ProjectController(BaseController):
         """
         Get the path for the project directory.
         """
-        project_dir = os.path.join(self.files_dir, project_id) 
+        project_dir = os.path.join(self.files_dir, str(project_id)) 
         
         if not os.path.exists(project_dir):
             os.makedirs(project_dir)  

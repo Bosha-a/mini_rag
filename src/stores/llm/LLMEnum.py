@@ -16,8 +16,8 @@ class CohereEnum(Enum):
     USER = "USER"
     ASSISTANT = "CHATBOT"
 
-    DOCUMENT = "document" 
-    QUERY = "query"
+    DOCUMENT = "search_document" 
+    QUERY = "search_query"
 
 
 class GeminiEnum(Enum):

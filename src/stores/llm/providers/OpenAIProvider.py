@@ -2,6 +2,7 @@ from ..LLMInterface import LLMInterface
 from ..LLMEnum import OpenAIEnum
 from openai import OpenAI
 import logging 
+from typing import List, Union
 
 
 class OpenAIProvider(LLMInterface):
@@ -46,7 +47,6 @@ class OpenAIProvider(LLMInterface):
         return text[:self.default_input_max_characters].strip() if len(text) > self.default_input_max_characters else text
 
 
-
     def generate_text(self, prompt: str, chat_history: list = None, max_output_tokens: int = None, temperature: float = None) -> str:
         if chat_history is None:
             chat_history = []
@@ -81,7 +81,7 @@ class OpenAIProvider(LLMInterface):
         
 
 
-    def embed_text(self, text: str, document_type: str) -> list:
+    def embed_text(self, text: Union[str, List[str]], document_type: str) -> list:
         if not self.client:
             self.logger.error("OpenAI client is not initialized. Please check your API key and base URL.")
             return None
@@ -89,6 +89,10 @@ class OpenAIProvider(LLMInterface):
         if not self.embedding_model_id:
             self.logger.error("Embedding model ID is not set. Please set it using set_embedding_model method.")
             return None
+
+
+        if isinstance(text, str):
+            text = [text]
         
         response = self.client.embeddings.create(
             model=self.embedding_model_id,
@@ -99,12 +103,11 @@ class OpenAIProvider(LLMInterface):
             self.logger.error("Failed to get embedding from OpenAI API. Response is empty or invalid.")
             return None
 
-        return response.data[0].embedding
-
+        return [d.embedding for d in response.data]
 
 
     def construct_prompt(self, prompt: str, role: str) -> str:
         return{
             "role": role,
-            "content": self.process_text(prompt)
+            "content": prompt
         }
