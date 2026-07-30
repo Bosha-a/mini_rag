@@ -19,3 +19,8 @@ alembic
 pgvector
 nltk
 cohere
+
+prometheus-client
+starlette_exporter
+
+fastapi-health
