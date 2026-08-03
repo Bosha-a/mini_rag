@@ -69,7 +69,6 @@ The project is designed to run locally or in Docker with a production-friendly s
 | Observability     | Prometheus, starlette_exporter, Grafana  | Metrics collection and dashboarding.                     |
 | Edge / proxy      | Nginx                                                                     | Reverse proxy and HTTP entrypoint in Docker.             |
 | Containerization  | Docker, Docker Compose                                                    | Local and production-style service orchestration.        |
-|
 
 
 ## Getting started
